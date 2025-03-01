@@ -13,12 +13,12 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Fetch all history to allow branch creation
+          fetch-depth: 0  # Fetch full history
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 18  # Adjust to your Next.js version
+          node-version: 18
 
       - name: Install dependencies
         run: npm install
@@ -26,24 +26,26 @@ jobs:
       - name: Build Next.js app
         run: npm run build
 
-      - name: Move build to azure branch
+      - name: Deploy to Azure branch
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
-          # Create (or switch to) the azure branch
-          git checkout --orphan azure
+          # Use PAT for authentication
+          git remote set-url origin https://$GH_PAT@github.com/${{ github.repository }}.git
+
+          # Switch to azure branch (create if necessary)
+          git checkout azure || git checkout --orphan azure
 
           # Remove all existing files from the branch
           git rm -rf .
 
           # Move the Next.js build output
-          mkdir .next && mv .next/* . 
+          mkdir .next && mv .next/* .
 
-          # Add and commit changes
+          # Commit and push
           git add .
-          git commit -m "Deploy Next.js build to azure branch"
-
-          # Push the branch, overwriting existing history
+          git commit -m "Deploy Next.js build to azure branch" || echo "No changes to commit"
           git push --force origin azure
-          
+        env:
+          GH_PAT: ${{ secrets.GH_PAT }}
